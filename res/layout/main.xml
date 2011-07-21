@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:orientation="vertical"
+    android:layout_width="fill_parent"
+    android:layout_height="fill_parent"
+    >
+<TextView  
+    android:layout_width="fill_parent" 
+    android:layout_height="wrap_content" android:text="@string/input_file"
+    android:layout_alignParentTop="true"
+    android:id="@+id/textView" 
+    />
+
+<RelativeLayout android:layout_height="wrap_content" android:id="@+id/buttonsLayout" android:layout_width="fill_parent" android:layout_alignParentBottom="true">
+	<Button android:layout_height="wrap_content" android:text="@string/apply" android:layout_width="wrap_content" android:id="@+id/buttonApply"></Button>
+	<Button android:layout_height="wrap_content" android:text="@string/removeEditText" android:layout_width="wrap_content" android:id="@+id/buttonRemoveEditText" android:layout_alignParentRight="true"></Button>
+	<Button android:layout_height="wrap_content" android:text="@string/addEditText" android:layout_width="wrap_content" android:id="@+id/buttonAddEditText" android:layout_toLeftOf="@id/buttonRemoveEditText"></Button>
+	<TextView  
+    android:layout_width="wrap_content" 
+    android:layout_height="wrap_content" android:text="@string/sourceText"
+    android:layout_toLeftOf="@id/buttonAddEditText"
+    />
+</RelativeLayout>
+
+<ScrollView
+    android:layout_width="fill_parent"
+    android:layout_height="fill_parent"
+    android:layout_below="@id/textView"
+    android:layout_above="@id/buttonsLayout"
+    >
+	<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    	android:orientation="vertical"
+    	android:layout_width="fill_parent"
+    	android:layout_height="wrap_content"
+    	android:id="@+id/mainLayout"
+    	>
+		<EditText android:layout_height="wrap_content" android:layout_width="fill_parent" android:id="@+id/sourceFilePath">
+	    	<requestFocus></requestFocus>
+		</EditText>
+	</LinearLayout>
+</ScrollView>
+</RelativeLayout>
