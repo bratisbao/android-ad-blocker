@@ -7,16 +7,27 @@
     <string name="addEditText">Add</string>
     <string name="removeEditText">Remove</string>
     <string name="about">About...</string>
+    <string name="backup">Backup to SD</string>
+    <string name="restore">Restore sources</string>
     <string name="processing">Processing</string>
     <string name="pleaseWait">Please wait</string>
     <string name="errSrcNotExist">Error: Source file does not exist.</string>
+    <string name="errSDRead">Error: SD card not present.</string>
+    <string name="errSDWrite">Error: SD card not present or read only.</string>
     <string name="errNoRoot">Could not acquire root access.\nYou need a phone with a rooted firmware.\nIf this phone is already rooted, please make sure the application has enough permissions to execute the \&quot;su\&quot; command.</string>
     <string name="errMountPoint">Error: Unable to figure out /system mount point.</string>
     <string name="errScriptRun">Error: Unknown error executing script.</string>
     <string name="errTempDir">Error: Unable to create temporary directory.</string>
+    <string name="errCopyFile">Error: Unable to copy file.</string>
     <string name="errNoGoodSource">Error: No source could be used.\nPlease check paths or URLs.</string>
     <string name="errMerge">Error: Unable to merge source files.</string>
-    <string name="okMessage">File copied.\nPlease restart to flush DNS cache.</string>
+    <string name="errWritePrefs">Error: Unable to write to preferences file.</string>
+    <string name="errReadPrefs">Error: Unable to read to preferences file.</string>
+    <string name="okHostsMessage">File copied.\nPlease restart to flush DNS cache.</string>
+    <string name="okBackupHostsMessage">Hosts file copied to SD card.</string>
+    <string name="okBackupPrefsMessage">Preferences copied to SD card.</string>
+    <string name="okRestorePrefsMessage">Preferences restored.</string>
     <string name="tooManyMessage">Sources limited at 20.</string>
+    <string name="tryingRoot">Cannot copy normally. Retrying with root access.</string>
     <string name="aboutMessage">Author: <a href="http://adrian.pasvante.com">Adrian Pasvante</a>\n\nRoot script code based on <a href="http://droidwall.googlecode.com">DroidWall</a>.\n\nMerging code based on <a href="http://mathdotrandom.blogspot.com/2010/12/block-ads-on-pc-android-with-uber-hosts.html">Rudolf\'s</a>.\n\nIcon based on <a href="http://commons.wikimedia.org/wiki/File:Stop_hand_nuvola_black.svg">this</a>.</string>
 </resources>
