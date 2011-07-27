@@ -1,13 +1,19 @@
 package com.pasvante.adblocker;
 
+import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.PrintWriter;
 import java.net.URL;
 import java.net.URLConnection;
 import java.nio.channels.Channels;
 import java.nio.channels.ReadableByteChannel;
+import java.util.ArrayList;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -16,9 +22,12 @@ import android.app.AlertDialog;
 import android.app.ProgressDialog;
 import android.content.Context;
 import android.content.SharedPreferences;
+import android.content.pm.PackageInfo;
+import android.content.pm.PackageManager.NameNotFoundException;
 import android.content.res.Resources;
 import android.os.AsyncTask;
 import android.os.Bundle;
+import android.os.Environment;
 import android.preference.PreferenceManager;
 import android.view.Menu;
 import android.view.MenuInflater;
@@ -45,6 +54,7 @@ public class AdBlockerActivity extends Activity {
 	private static final String DEFAULT_HOSTS_LOCATION = "/system/etc/hosts";
 	private static final String PREF_PATH_COUNT = "PREF_PATH_COUNT";
 	private static final String PREF_PREVIOUS_PATH = "PREF_PREVIOUS_PATH";
+	private static final String DEFAULT_BACKUP_PREFS_FNAME = "ad-blocker.pref";
 	
 	private static String SystemMountPoint = null;
 	private LinearLayout mainLayout = null;
@@ -131,7 +141,7 @@ public class AdBlockerActivity extends Activity {
 		chmod 644 /etc/hosts
 		mount -o remount,ro /dev/block/mtdblock3 /system
 	 */
-   	private static String makeScript(String srcFile, String dstFile)
+   	private static String makeCopyScript(String srcFile, String dstFile)
    	{
    		if (null == SystemMountPoint) {
    			return null;
@@ -141,7 +151,15 @@ public class AdBlockerActivity extends Activity {
    		sb.append(SCRIPT_TEMPLATE_PART2);
    		sb.append(dstFile);
    		sb.append(" ");
-   		sb.append(dstFile);
+   		// try to backup to sdcard
+   		File sdcard = new File("/sdcard/");
+   		if (sdcard.exists()) {
+   			sb.append("/sdcard/hosts");
+   		}
+   		else {
+   			// same folder as destination
+   	   		sb.append(dstFile);
+   		}
    		sb.append(SCRIPT_TEMPLATE_PART3);
    		sb.append(srcFile);
    		sb.append(" ");
@@ -154,6 +172,28 @@ public class AdBlockerActivity extends Activity {
    		return sb.toString();
    	}
     
+	/*
+	cp /etc/hosts /sdcard/
+	*/
+	private static String makeCopyToSDcardScript(String srcFile, String destDir)
+	{
+		if (null == destDir || null == srcFile) {
+			return null;
+		}
+		File sdcard = new File(destDir);
+		if (!sdcard.exists()) {
+	   		return null;
+		}
+		StringBuilder sb = new StringBuilder("cp ");
+		sb.append(srcFile);
+		sb.append(" ");
+		sb.append(destDir);
+		if (!destDir.endsWith(File.separator)) {
+			sb.append(File.separator);
+		}
+		return sb.toString();
+	}
+
    	private void ApplyHostsFile(String srcPath) {
 		//EditText editCtrl = (EditText)findViewById(R.id.sourceFilePath);
 		//String path = editCtrl.getText().toString();
@@ -186,7 +226,7 @@ public class AdBlockerActivity extends Activity {
 		
 		int result = -1;
 		try {
-			result = ShellScript.runScript(AdBlockerActivity.this, makeScript(srcPath, DEFAULT_HOSTS_LOCATION), true);
+			result = ShellScript.runScript(AdBlockerActivity.this, makeCopyScript(srcPath, DEFAULT_HOSTS_LOCATION), true);
 		}
 		catch (IOException e) {
 			result = -1;
@@ -198,11 +238,219 @@ public class AdBlockerActivity extends Activity {
 		}
 
 		// 0 == result
-		Toast toast = Toast.makeText(AdBlockerActivity.this, R.string.okMessage, Toast.LENGTH_LONG);
+		Toast toast = Toast.makeText(AdBlockerActivity.this, R.string.okHostsMessage, Toast.LENGTH_LONG);
 		toast.show();
 	}
+   	
+   	private static boolean isSDCardAvailable(boolean readOnly) {
+   		String state = Environment.getExternalStorageState();
+   		if (Environment.MEDIA_MOUNTED.equals(state)) {
+   	        return true;
+   	    } else if (Environment.MEDIA_MOUNTED_READ_ONLY.equals(state)) {
+   	    	if (readOnly) {
+   	    		return true;
+   	    	}
+   	    	else {
+   	    		return false;
+   	    	}
+   	    }
+   		return false;
+   	}
+   	
+   	private static String getSDCardDirectoryName(boolean readOnly) {
+   		if (!isSDCardAvailable(readOnly)) {
+   			return null;
+   		}
+        return Environment.getExternalStorageDirectory().getAbsolutePath();
+   	}
+   	
+   	private static File getSDCardDirectory(boolean readOnly) {
+   		if (!isSDCardAvailable(readOnly)) {
+   			return null;
+   		}
+        return Environment.getExternalStorageDirectory();
+   	}
+   	
+   	private void restorePrefsFromSDcard() {
+		Resources res = getResources();
+
+		String sdPath = getSDCardDirectoryName(true);
+   		if (null == sdPath) {
+			alert(AdBlockerActivity.this, res.getString(R.string.errSDRead));
+   			return;
+   		}
+   		StringBuilder sb = new StringBuilder(sdPath);
+   		if (!sdPath.endsWith(File.separator)) {
+   			sb.append(File.separator);
+   		}
+   		sb.append(DEFAULT_BACKUP_PREFS_FNAME);
+
+   		File inFile = new File(sb.toString());
+   		if (!inFile.exists() || ! inFile.canRead()) {
+			alert(AdBlockerActivity.this, res.getString(R.string.errSrcNotExist));
+   			return;
+   		}
+   		
+   		ArrayList<String> prefs = new ArrayList<String>();
+   		
+   		FileInputStream fileIS = null;
+   		BufferedReader input = null;
+   		try {
+   	   		fileIS = new FileInputStream(inFile);
+   	   		input = new BufferedReader(new InputStreamReader(fileIS));
+   	        String line = null;
+   	        while (( line = input.readLine()) != null) {
+   	        	if (line.length() > 0) {
+   	        		prefs.add(line);
+   	        	}
+   	        }
+   		}
+   		catch (IOException e) {
+   		}
+   		finally {
+   			if (null != input) {
+   				try {
+   	   				input.close();
+   				}
+   				catch (IOException e) {
+   				}
+   			}
+   		}
+        
+        if (prefs.size() == 0) {        	
+			alert(AdBlockerActivity.this, res.getString(R.string.errReadPrefs));
+   			return;
+        }
+
+		int currentCount = mainLayout.getChildCount();
+   		
+        while (currentCount < prefs.size()) {
+			EditText editNew = new EditText(AdBlockerActivity.this);
+			LayoutParams params = new LayoutParams(LayoutParams.FILL_PARENT, LayoutParams.WRAP_CONTENT);
+			mainLayout.addView(editNew, 1, params);
+			currentCount = mainLayout.getChildCount();
+        }
+        
+        for (int i = 0; i < currentCount; i++) {
+            //String previousPath = prefs.getString(PREF_PREVIOUS_PATH + String.valueOf(i), "");
+            EditText editCtrl = (EditText)mainLayout.getChildAt(i);
+    		editCtrl.setText(prefs.get(i));
+        }
+
+        Toast toast = Toast.makeText(AdBlockerActivity.this, R.string.okRestorePrefsMessage, Toast.LENGTH_LONG);
+		toast.show();
+   	}
+   	
+   	private void backupPrefsToSDcard() {
+		Resources res = getResources();
+        int currentCount = mainLayout.getChildCount();
+
+		String sdPath = getSDCardDirectoryName(false);
+   		if (null == sdPath) {
+			alert(AdBlockerActivity.this, res.getString(R.string.errSDWrite));
+   			return;
+   		}
+   		StringBuilder sb = new StringBuilder(sdPath);
+   		if (!sdPath.endsWith(File.separator)) {
+   			sb.append(File.separator);
+   		}
+   		sb.append(DEFAULT_BACKUP_PREFS_FNAME);
+   		
+   		File out = new File (sb.toString());
+   		PrintWriter w = null;
+   		boolean writeError = true;
+   		try {
+   	   		w = new PrintWriter(out);
+   	        for (int i = 0; i < currentCount; i++) {
+   	            EditText editCtrl = (EditText)mainLayout.getChildAt(i);
+   	            w.println(editCtrl.getText().toString());
+   	        }
+   	   		writeError = false;
+   		}
+   		catch (IOException e) {   			
+			writeError = true;
+   		}
+   		finally {
+   			if (null != w) {
+				w.close();
+   			}
+   		}
+   		if (writeError) {
+   			alert(AdBlockerActivity.this, res.getString(R.string.errWritePrefs));
+   			return;
+   		}
+
+   		Toast toast = Toast.makeText(AdBlockerActivity.this, R.string.okBackupPrefsMessage, Toast.LENGTH_LONG);
+		toast.show();
+   	}
+   	
+   	private void backupHostsToSDcard() {
+		Resources res = getResources();
+   		File src = new File(DEFAULT_HOSTS_LOCATION);
+
+		if (!src.exists()) {
+			alert(AdBlockerActivity.this, res.getString(R.string.errSrcNotExist));
+   			return;
+   		}
+   		File sdcard = getSDCardDirectory(false);
+   		if (null == sdcard || !sdcard.exists()) {
+			alert(AdBlockerActivity.this, res.getString(R.string.errSDWrite));
+   			return;
+   		}
+   		if (src.canRead()) {
+   			InputStream is;
+			try {
+				is = new FileInputStream(src);
+			} catch (FileNotFoundException e) {
+				alert(AdBlockerActivity.this, res.getString(R.string.errSrcNotExist));
+				return;
+			}
+			String sdPath = getSDCardDirectoryName(false);
+	   		if (null == sdPath) {
+				alert(AdBlockerActivity.this, res.getString(R.string.errSDWrite));
+	   			return;
+	   		}
+	   		StringBuilder sb = new StringBuilder(sdPath);
+	   		if (!sdPath.endsWith(File.separator)) {
+	   			sb.append(File.separator);
+	   		}
+	   		sb.append("hosts");
+   			if (copyStreamToFile(is, (int) src.length(), sb.toString())) {
+   				Toast toast = Toast.makeText(AdBlockerActivity.this, R.string.okBackupHostsMessage, Toast.LENGTH_LONG);
+   				toast.show();
+   				return;
+   			}
+   			// fall back on root copy
+   		}
+
+		// no rights, try with root access
+		Toast toast = Toast.makeText(AdBlockerActivity.this, R.string.tryingRoot, Toast.LENGTH_LONG);
+		toast.show();
+
+		if (!ShellScript.hasRootAccess(AdBlockerActivity.this))
+		{
+			alert(AdBlockerActivity.this, res.getString(R.string.errNoRoot));
+			return;
+		}
+		int result = -1;
+		try {
+			result = ShellScript.runScript(AdBlockerActivity.this, makeCopyToSDcardScript(DEFAULT_HOSTS_LOCATION, getSDCardDirectoryName(false)), true);
+		}
+		catch (IOException e) {
+			result = -1;
+		}
+			
+		if (0 != result) {				
+			alert(AdBlockerActivity.this, res.getString(R.string.errScriptRun));
+			return;
+		}
+
+		// 0 == result
+		toast = Toast.makeText(AdBlockerActivity.this, R.string.okBackupHostsMessage, Toast.LENGTH_LONG);
+		toast.show();
+   	}
  
-   	private boolean copyStreamToFile(InputStream is, int inputSize, String fileName) {
+   	private static boolean copyStreamToFile(InputStream is, int inputSize, String fileName) {
    		boolean result = false;
    		FileOutputStream fos = null;
    		try {
@@ -424,11 +672,27 @@ public class AdBlockerActivity extends Activity {
 	public boolean onOptionsItemSelected(MenuItem item) {
 		switch (item.getItemId()) {
 		case R.id.itemAbout: {
+			String title = getResources().getString(R.string.app_name);
+			PackageInfo pinfo;
+			try {
+				pinfo = getPackageManager().getPackageInfo(getPackageName(), 0);
+				title += " " + pinfo.versionName;
+			} catch (NameNotFoundException e) {
+			}
         	new AlertDialog.Builder(AdBlockerActivity.this)
         	.setNeutralButton(android.R.string.ok, null)
         	.setMessage(R.string.aboutMessage)
-        	.setTitle(R.string.app_name)
+        	.setTitle(title)
         	.show();
+			return true;
+		}
+		case R.id.itemBackup: {
+			backupHostsToSDcard();
+			backupPrefsToSDcard();
+			return true;
+		}
+		case R.id.itemRestore: {
+			restorePrefsFromSDcard();
 			return true;
 		}
 		default:
