@@ -152,9 +152,14 @@ public class AdBlockerActivity extends Activity {
    		sb.append(dstFile);
    		sb.append(" ");
    		// try to backup to sdcard
-   		File sdcard = new File("/sdcard/");
-   		if (sdcard.exists()) {
-   			sb.append("/sdcard/hosts");
+   		File sdcard = getSDCardDirectory(false);
+   		if (null != sdcard && sdcard.exists()) {
+   			String path = sdcard.getAbsolutePath();   			
+   			sb.append(path);
+   			if (!path.endsWith(File.separator)) {
+   				sb.append(File.separator);
+   			}
+   			sb.append("hosts");
    		}
    		else {
    			// same folder as destination
