@@ -56,6 +56,8 @@ public class AdBlockerActivity extends Activity {
 	private static final String PREF_PREVIOUS_PATH = "PREF_PREVIOUS_PATH";
 	private static final String DEFAULT_BACKUP_PREFS_FNAME = "ad-blocker.pref";
 	
+	private static final int TRANSFER_BUFFER_SIZE = 4096;
+	
 	private static String SystemMountPoint = null;
 	private LinearLayout mainLayout = null;
 	
@@ -458,10 +460,24 @@ public class AdBlockerActivity extends Activity {
    	private static boolean copyStreamToFile(InputStream is, int inputSize, String fileName) {
    		boolean result = false;
    		FileOutputStream fos = null;
+   		//int total = 0;
+   		int readCount = 0;
+   		byte[] buffer = new byte[Math.min(TRANSFER_BUFFER_SIZE, inputSize)];
    		try {
-   	   		ReadableByteChannel rbc = Channels.newChannel(is);
+   	   		//ReadableByteChannel rbc = Channels.newChannel(is);
+   	   	    //total += fos.getChannel().transferFrom(rbc, 0, inputSize);
    	   	    fos = new FileOutputStream(fileName);
-   	   	    fos.getChannel().transferFrom(rbc, 0, inputSize);
+   	   	    do {
+   	   	    	// read in buffer
+   	   	    	readCount = is.read(buffer);
+   	   	    	if (-1 == readCount) {
+   	   	    		break;
+   	   	    	}
+   	   	    	if (readCount > 0) {
+   	   	    		fos.write(buffer, 0, readCount);
+   	   	    		//total += readCount;
+   	   	    	}
+   	   	    } while (true);
    	   	    result = true;
    		}
    		catch (Exception e) {   			

@@ -102,7 +102,7 @@ public class MergeHosts {
 		try {
 			finalHosts = new File(folder.getAbsolutePath() + File.separator + OutputFileName);
 			fw = new FileWriter(finalHosts, false);
-			bw = new BufferedWriter(fw, 4 * 1024);
+			bw = new BufferedWriter(fw);
 			
 			distinctDomains.remove("localhost");
 			bw.write("127.0.0.1 localhost\n");
