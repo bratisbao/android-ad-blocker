@@ -47,7 +47,9 @@ public class ShellScript {
 		if (null == script || null == ctx) {
 			return -1;
 		}
-		File file = File.createTempFile("script-", ".sh", ctx.getCacheDir());
+		//the file name should not change - otherwise Superuser app will not be able to "remember" it
+		//File file = File.createTempFile("script-", ".sh", ctx.getCacheDir());
+		File file = new File(ctx.getCacheDir(), DEFAULT_SCRIPT_NAME);
 		int result = runScript(script, null, DEFAULT_TIMEOUT_MILISECONDS, file, asroot);
 		file.delete();
 		return result;
